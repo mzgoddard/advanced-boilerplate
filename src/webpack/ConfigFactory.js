@@ -8,7 +8,7 @@ import ExtractTextPlugin from "extract-text-webpack-plugin"
 
 import CodeSplitWebpackPlugin from "code-split-component/webpack"
 import BabiliPlugin from "babili-webpack-plugin"
-// import HardSourceWebpackPlugin from "hard-source-webpack-plugin"
+import HardSourceWebpackPlugin from "hard-source-webpack-plugin"
 
 import { BundleAnalyzerPlugin } from "webpack-bundle-analyzer"
 
@@ -672,7 +672,6 @@ function ConfigFactory(target, mode, options = {}, root = CWD)
       // Improve source caching in Webpack v2
       // This thing seems to have magical effects on rebuild times. Problem is that it's
       // still unusable right now because of a range of issues.
-      /*
       new HardSourceWebpackPlugin({
         // Either an absolute path or relative to output.path.
         cacheDirectory: path.resolve(root, ".hardsource", `${target}-${mode}`),
@@ -689,7 +688,6 @@ function ConfigFactory(target, mode, options = {}, root = CWD)
           files: [ "package.json", "yarn.lock" ]
         }
       }),
-      */
 
       // Adds options to all of our loaders.
       ifDev(
@@ -742,6 +740,25 @@ function ConfigFactory(target, mode, options = {}, root = CWD)
         // behavior on the CodeSplit instances).
         disabled: isDev
       }),
+
+      {
+        apply: function(compiler) {
+          var safeChunkIdMax = 100000;
+          compiler.plugin('compilation', function(compilation) {
+            compilation.plugin('optimize-chunk-order', function() {
+              if (compilation.usedChunkIds) {
+                var usedChunkIds = {};
+                for (var key in compilation.usedChunkIds) {
+                  if (compilation.usedChunkIds[key] < safeChunkIdMax) {
+                    usedChunkIds[key] = compilation.usedChunkIds[key];
+                  }
+                }
+                compilation.usedChunkIds = usedChunkIds;
+              }
+            });
+          });
+        },
+      },
 
       // For server bundle, you also want to use "source-map-support" which automatically sourcemaps
       // stack traces from NodeJS. We need to install it at the top of the generated file, and we
